@@ -1,8 +1,8 @@
 {
   "name": "facturabot-groq-orquestador",
-  "version": "1.2.0",
+  "version": "1.8.0",
   "private": true,
-  "description": "FacturaBot con POO, agente orquestador y Groq, más workflows importables para n8n.",
+  "description": "FacturaBot Intelligence con enrutamiento conceptual corregido y menú lateral contraíble accesible.",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
@@ -11,5 +11,7 @@
     "check": "node --check src/server.js && node --check src/domain/invoices.js && node --check src/services/orchestrator.js && node --check src/services/groq-client.js && node --check src/agents/agents.js && node --check src/agents/base-agent.js && node --check public/app.js && node --check public/csv-utils.js",
     "verify": "npm run check && npm test"
   },
-  "engines": { "node": ">=20.11.0" }
+  "engines": {
+    "node": ">=20.11.0"
+  }
 }

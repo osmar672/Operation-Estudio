@@ -14,6 +14,7 @@ test('Groq utiliza el endpoint compatible con Chat Completions y el modelo confi
   assert.equal(request.url, 'https://api.groq.com/openai/v1/chat/completions');
   assert.equal(request.options.headers.Authorization, 'Bearer clave-de-prueba');
   assert.equal(request.body.model, 'openai/gpt-oss-120b');
+  assert.equal(request.body.reasoning_effort, 'high');
   assert.deepEqual(request.body.response_format, { type: 'json_object' });
 });
 

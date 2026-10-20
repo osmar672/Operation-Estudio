@@ -33,3 +33,17 @@ test('el renderizador usa los datos del lote sin crear una serie mensual artific
   assert.match(js, /report\.totalFacturado/);
   assert.doesNotMatch(js, /syntheticMonthlyData|fakeRevenueSeries/i);
 });
+
+
+test('el menú lateral permite contraer y expandir desde su cabecera y conserva la preferencia', () => {
+  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
+  assert.ok(ids.has('sidebar-toggle'), 'Debe existir el botón de contraer');
+  assert.match(html, /class="sidebar-header"/);
+  assert.match(html, /aria-controls="sidebar"/);
+  assert.match(html, /title="Facturas"/);
+  assert.match(js, /SIDEBAR_PREFERENCE_KEY = 'facturabot-sidebar-collapsed'/);
+  assert.match(js, /setSidebarCollapsed\(!document\.body\.classList\.contains\('sidebar-collapsed'\)\)/);
+  assert.match(js, /aria-expanded/);
+  assert.match(css, /body\.sidebar-collapsed/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+});

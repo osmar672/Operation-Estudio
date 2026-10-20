@@ -1,17 +1,20 @@
-# FacturaBot + Groq + Agente Orquestador · v1.2.0
+# FacturaBot + Groq + Agente Orquestador · edición mejorada v1.8
 
 Implementación de la práctica **FacturaBot: POO en el Code Node de n8n**, ampliada con un agente orquestador y cinco especialistas, siguiendo el material de clase adjunto.
 
 ## Qué incluye
 
-- **Panel web actualizado para gestión financiera** con una interfaz clara de acentos turquesa/verde inspirada en patrones de software contable empresarial, navegación adaptable, tema claro/oscuro, animaciones accesibles, tipografía más legible, indicadores animados y estados de conexión. La referencia visual es conceptual: FacturaBot mantiene su marca y su propia estructura.
+- **Interfaz rediseñada y más cómoda**: mejor jerarquía visual, espacios, tipografía, panel de conversación y adaptación a móvil/tablet/escritorio.
+- **Panel web de gestión financiera** con una interfaz clara de acentos turquesa/verde inspirada en patrones de software contable empresarial, navegación adaptable, tema claro/oscuro, animaciones accesibles, tipografía más legible, indicadores animados y estados de conexión. La referencia visual es conceptual: FacturaBot mantiene su marca y su propia estructura.
 - **Gráficos del lote en tiempo real**: barras interactivas por factura, gráfico de dona para los estados de validación y barras de IVA calculado por tipo; los gráficos se actualizan al importar/procesar un CSV y se puede abrir el detalle al seleccionar una factura. Incluye resumen fiscal de total procesable, IVA, porcentaje aprobado y umbral de revisión.
 - **Herramientas CSV**: descarga de plantilla, importación con validaciones, agrupación de múltiples líneas por factura y exportación de los registros filtrados. Los lotes importados se comparten con el asistente durante la sesión.
 - **POO real en JavaScript**: `LineaFactura`, `Factura` (base abstracta), `FacturaNacional`, `FacturaExenta`, `FacturaExtranjera`, `FacturaTarifaReducida`, `FabricaFacturas`, `ValidadorFactura` y `ReporteLote`.
 - **Reglas deterministas para dinero/estados**; el LLM interpreta y redacta, pero no decide los totales contables.
-- **Orquestador de cinco especialistas**: facturas, datos, reportes, correo (solo borradores) y archivos (documentación aportada como texto).
+- **Orquestador con cinco especialistas de negocio y modo general**: facturas, datos, reportes, correo (solo borradores), archivos (texto aportado) y respuestas generales con Groq. El modo local ofrece una calculadora básica segura y explica sus límites.
 - **Groq en el servidor** mediante la API compatible con Chat Completions. La clave no se envía al frontend.
 - **Modo local de reserva** cuando no hay clave, se agota el límite o Groq no está disponible.
+- **Modo de razonamiento alto** configurable para GPT-OSS, mayor presupuesto de respuesta y memoria conversacional ampliada para mantener mejor el contexto.
+- **Instrucciones de calidad reforzadas** para resolver tareas complejas, escribir código ejecutable, cubrir solicitudes de varias partes y declarar supuestos sin inventar capacidades.
 - **Memoria breve por sesión**, lote importado aislado por identificador de sesión (en memoria del servidor), validación de entradas, cabeceras de seguridad, límite básico de solicitudes y errores sin filtrar secretos.
 - **Tres workflows n8n en JSON**, incluido `FacturaBot_SUPER_Workflow_Groq.json`, la variante unificada recomendada con 19 nodos que reúne chat con Groq, cinco herramientas especialistas y la rama manual POO. También se conservan los dos workflows separados para poder probarlos de forma independiente.
 - **Pruebas automáticas** que comprueban la herencia, el encapsulamiento, la fábrica, los estados, el cliente Groq y los totales del documento.
@@ -27,8 +30,8 @@ Implementación de la práctica **FacturaBot: POO en el Code Node de n8n**, ampl
 
 1. Extrae el ZIP.
 2. Abre una terminal dentro de `facturabot-groq-orquestador`.
-3. Copia `.env.example` a `.env`.
-4. Obtén una clave desde <https://console.groq.com/keys> y ponla en `GROQ_API_KEY` en `.env`.
+3. Copia `.env.example` a `.env`. El archivo de ejemplo no contiene credenciales.
+4. Obtén una clave nueva desde <https://console.groq.com/keys> y ponla en `GROQ_API_KEY` en `.env`.
 5. Ejecuta:
 
 ```bash
@@ -45,10 +48,11 @@ No es necesario `npm install`: el servidor usa módulos integrados de Node.js. S
 |---|---|---|
 | `GROQ_API_KEY` | Clave secreta de Groq | Vacía (modo local) |
 | `GROQ_MODEL` | ID del modelo | `openai/gpt-oss-120b` |
+| `GROQ_REASONING_EFFORT` | Esfuerzo de razonamiento para GPT-OSS (`low`, `medium`, `high`) | `high` |
 | `PORT` | Puerto HTTP | `3000` |
 | `HOST` | Interfaz de escucha | `127.0.0.1` |
 
-El ID del modelo es configurable. Verifica los modelos activos y sus límites en <https://console.groq.com/docs/models> antes de cambiarlo. La clave permanece en el servidor y nunca se envía al navegador.
+El modelo predeterminado usa esfuerzo de razonamiento `high` cuando el proveedor y modelo lo admiten; puedes reducirlo con `GROQ_REASONING_EFFORT=medium` o `low` si priorizas velocidad/costo. Esto mejora el uso del modelo, pero no garantiza respuestas perfectas. El ID del modelo es configurable. Verifica los modelos activos y sus límites en <https://console.groq.com/docs/models> antes de cambiarlo. La clave permanece en el servidor y nunca se envía al navegador.
 
 ## Probar la implementación
 
@@ -100,7 +104,7 @@ Los JSON se encuentran en `n8n/`.
 
 ## Seguridad y límites conocidos
 
-Este ZIP es una base funcional de desarrollo/demo, **no debe publicarse directamente como sistema fiscal de producción**. Antes de exponerlo a Internet hay que añadir:
+Este ZIP es una base funcional de desarrollo/demo, **no debe publicarse directamente como sistema fiscal de producción**. Si una clave de Groq real estuvo en un archivo compartido, revócala y genera una nueva antes de usar el proyecto. Antes de exponerlo a Internet hay que añadir:
 
 - Autenticación y autorización de usuarios (RBAC), HTTPS y un proxy con límites por usuario.
 - Base de datos persistente, migraciones, copias de seguridad y controles de acceso por organización.
@@ -129,3 +133,27 @@ facturabot-groq-orquestador/
 ├── .env.example
 └── package.json
 ```
+
+
+## Mejoras de usabilidad y redacción (v1.5)
+- La redacción de correos usa una instrucción generativa dedicada: produce asunto y cuerpo completos según la petición y el contexto conversacional, en vez de limitarse a una plantilla fija.
+- Los correos siguen siendo borradores: la aplicación no afirma haberlos enviado.
+- Ajustes de tamaño de navegación, tipografía, campo de chat y área de mensajes para mejorar lectura y comodidad.
+- Verificación local: `npm run verify`.
+
+
+### v1.7 — Menú lateral contraíble
+En escritorio, usa el botón ⇤ junto a la ruta superior para contraer el menú a una barra de iconos; vuelve a pulsarlo para expandirlo. La preferencia se guarda localmente en el navegador. En móviles se mantiene el menú desplegable existente.
+
+
+## Menú lateral contraíble (v1.7)
+
+En escritorio, utiliza el botón de flecha junto al logotipo FacturaBot para contraer la barra lateral y ganar espacio de trabajo. Los iconos conservan sus nombres accesibles y sus descripciones emergentes; vuelve a presionar el botón para recuperar las opciones. La preferencia se guarda en `localStorage`. En pantallas pequeñas se conserva el menú móvil desplegable y se oculta el control de contracción para evitar conflictos de navegación.
+
+
+## v1.8 — Corrección de preguntas conceptuales
+
+- Las solicitudes educativas como «¿qué es el IVA?» o «explícame la factura electrónica» se envían directamente al asistente general y no al procesador de lotes.
+- Se ajustaron las instrucciones del clasificador para separar explicaciones teóricas de operaciones reales sobre facturas.
+- El modo local incluye explicaciones breves de conceptos frecuentes de facturación cuando Groq no está configurado.
+- Las consultas operativas identificadas por un número de factura conservan el enrutamiento al especialista de datos.

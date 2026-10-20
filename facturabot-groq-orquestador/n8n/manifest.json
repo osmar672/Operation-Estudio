@@ -1,0 +1,17 @@
+{
+  "version": "1.2.0",
+  "workflows": [
+    {
+      "file": "FacturaBot_SUPER_Workflow_Groq.json",
+      "description": "Workflow unificado con chat IA y procesamiento POO."
+    },
+    {
+      "file": "FacturaBot_Orquestador_Groq.json",
+      "description": "Base simplificada del orquestador."
+    },
+    {
+      "file": "FacturaBot_Procesamiento_POO.json",
+      "description": "Ejemplo independiente de procesamiento con Code node."
+    }
+  ]
+}

@@ -118,7 +118,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      json(res, 200, { ok: true, app: 'FacturaBot', version: '1.2.0', groqConfigured: llm.configured, model: llm.model, agents: orchestrator.listarAgentes().map((agent) => agent.nombre), dataPersistence: 'session-memory' });
+      json(res, 200, { ok: true, app: 'FacturaBot', version: '1.8.0', groqConfigured: llm.configured, model: llm.model, agents: orchestrator.listarAgentes().map((agent) => agent.nombre), dataPersistence: 'session-memory' });
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/invoices') {

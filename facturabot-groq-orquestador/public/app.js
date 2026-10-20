@@ -470,6 +470,30 @@ $('#clear-chat').addEventListener('click', async () => {
 });
 $('#theme-button').addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
 $('#menu-button').addEventListener('click', () => $('#sidebar').classList.contains('is-open') ? closeMobileMenu() : openMobileMenu());
+const sidebarToggle = $('#sidebar-toggle');
+const SIDEBAR_PREFERENCE_KEY = 'facturabot-sidebar-collapsed';
+function setSidebarCollapsed(collapsed, { savePreference = true } = {}) {
+  const isCollapsed = Boolean(collapsed);
+  document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+  sidebarToggle.setAttribute('aria-expanded', String(!isCollapsed));
+  sidebarToggle.setAttribute('aria-pressed', String(isCollapsed));
+  sidebarToggle.setAttribute('aria-label', isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral');
+  sidebarToggle.title = isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral';
+  const icon = $('.sidebar-toggle-icon', sidebarToggle);
+  if (icon) icon.textContent = isCollapsed ? '›' : '‹';
+  $('#sidebar').setAttribute('aria-label', isCollapsed ? 'Menú principal contraído; usa los iconos para navegar' : 'Menú principal');
+  if (savePreference) {
+    try { localStorage.setItem(SIDEBAR_PREFERENCE_KEY, String(isCollapsed)); }
+    catch { /* La preferencia sigue aplicada durante esta sesión si el navegador bloquea localStorage. */ }
+  }
+}
+sidebarToggle.addEventListener('click', () => {
+  setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+});
+let initialSidebarCollapsed = false;
+try { initialSidebarCollapsed = localStorage.getItem(SIDEBAR_PREFERENCE_KEY) === 'true'; }
+catch { /* Los navegadores privados pueden bloquear localStorage. */ }
+setSidebarCollapsed(initialSidebarCollapsed, { savePreference: false });
 $('#sidebar-backdrop').addEventListener('click', closeMobileMenu);
 $('#import-button').addEventListener('click', () => {
   if (!state.activeInvoices) {

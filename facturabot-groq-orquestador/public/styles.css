@@ -380,3 +380,31 @@ td, .invoice-id, .provider-name, .money-cell { font-size: 11px; }
   .suggestion-copy strong { font-size: 10px; }
   .suggestion-copy small { font-size: 9px; }
 }
+
+/* Usabilidad v1.5: controles cómodos, jerarquía visual y lectura mejorada */
+:root { --sidebar-width: 270px; }
+.sidebar { padding: 28px 18px 18px; overflow-y: auto; }
+.brand { padding-bottom: 34px; }
+.brand-copy strong { font-size: 19px; }
+.workspace-label { font-size: 10px; }
+.nav-item { min-height: 52px; padding: 0 14px; font-size: 14px; border-radius: 13px; }
+.nav-icon { width: 26px; height: 26px; font-size: 19px; }
+.connection-card strong { font-size: 12px; }
+.connection-card small, .profile-copy strong { font-size: 11px; }
+.profile-copy small { font-size: 10px; }
+.main-content { padding-left: clamp(24px, 3.5vw, 60px); padding-right: clamp(24px, 3.5vw, 60px); }
+.panel-heading h2, .assistant-header h2 { font-size: clamp(18px, 1.4vw, 23px); }
+.panel-heading p { font-size: 13px; line-height: 1.65; }
+.chat-card { border-radius: 16px; }
+.chat-top { min-height: 66px; padding: 0 19px; }
+.chat-status strong { font-size: 13px; }
+.chat-status small { font-size: 11px; }
+.chat-messages { min-height: 300px; max-height: min(52vh, 560px); gap: 17px; padding: 22px; }
+.chat-form { gap: 12px; padding: 14px 16px; }
+.chat-form input { height: 48px; padding: 0 15px; font-size: 14px; border-radius: 12px; }
+.send-button { width: 46px; height: 46px; border-radius: 12px; }
+.chat-disclaimer { padding: 0 18px 15px; font-size: 10px; }
+.message-bubble { font-size: 14px; line-height: 1.7; }
+button, input, select, textarea { touch-action: manipulation; }
+@media (max-width: 1000px) { :root { --sidebar-width: 238px; } .main-content { padding-left: 22px; padding-right: 22px; } }
+@media (max-width: 760px) { .chat-messages { min-height: 260px; max-height: 50vh; padding: 15px; } .chat-form input { height: 44px; font-size: 13px; } .send-button { width: 42px; height: 42px; } }

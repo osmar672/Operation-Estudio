@@ -14,17 +14,20 @@
 <body>
   <div class="app-shell">
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" aria-label="Menú principal">
+      <div class="sidebar-header">
       <a class="brand" href="#inicio" aria-label="FacturaBot, ir al inicio">
         <span class="brand-mark" aria-hidden="true"><span class="brand-mark-main">F</span><span class="brand-mark-spark">✦</span></span>
         <span class="brand-copy"><strong>Factura<span>Bot</span></strong><small>OPERATIONS STUDIO</small></span>
       </a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Contraer menú lateral" title="Contraer menú lateral"><span class="sidebar-toggle-icon" aria-hidden="true">‹</span></button>
+      </div>
       <div class="workspace-label">WORKSPACE <span class="workspace-dot"></span></div>
       <nav class="navigation" aria-label="Navegación principal">
-        <a class="nav-item active" href="#inicio" data-nav="inicio"><span class="nav-icon" aria-hidden="true">◫</span><span>Resumen</span></a>
-        <a class="nav-item" href="#facturas" data-nav="facturas"><span class="nav-icon" aria-hidden="true">▤</span><span>Facturas</span><span class="nav-count" id="nav-count">7</span></a>
-        <a class="nav-item" href="#asistente" data-nav="asistente"><span class="nav-icon nav-ai" aria-hidden="true">✳</span><span>Agente IA</span><span class="nav-live" aria-label="Disponible"></span></a>
-        <a class="nav-item" href="#actividad" data-nav="actividad"><span class="nav-icon" aria-hidden="true">⌁</span><span>Actividad</span></a>
+        <a class="nav-item active" href="#inicio" data-nav="inicio" aria-label="Resumen" title="Resumen"><span class="nav-icon" aria-hidden="true">◫</span><span>Resumen</span></a>
+        <a class="nav-item" href="#facturas" data-nav="facturas" aria-label="Facturas" title="Facturas"><span class="nav-icon" aria-hidden="true">▤</span><span>Facturas</span><span class="nav-count" id="nav-count">7</span></a>
+        <a class="nav-item" href="#asistente" data-nav="asistente" aria-label="Agente IA" title="Agente IA"><span class="nav-icon nav-ai" aria-hidden="true">✳</span><span>Agente IA</span><span class="nav-live" aria-label="Disponible"></span></a>
+        <a class="nav-item" href="#actividad" data-nav="actividad" aria-label="Actividad" title="Actividad"><span class="nav-icon" aria-hidden="true">⌁</span><span>Actividad</span></a>
       </nav>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-tip">
@@ -45,7 +48,7 @@
     <main class="main-content" id="inicio">
       <header class="topbar">
         <div class="topbar-left">
-          <button class="icon-button menu-button" id="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
+          <button class="icon-button menu-button" id="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" title="Mostrar u ocultar menú">☰</button>
           <div class="breadcrumbs"><span class="crumb-home">Workspace</span><span class="crumb-separator">/</span><strong id="current-section">Resumen</strong></div>
         </div>
         <div class="topbar-actions">

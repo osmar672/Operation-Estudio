@@ -57,3 +57,51 @@ test('el orquestador utiliza el lote importado por el usuario en vez de los dato
   assert.equal(detail.result.factura.id, 'DEMO-001');
   assert.equal(detail.result.factura.estado, 'aprobada');
 });
+
+test('el modo local reconoce consultas generales sin enviarlas a un especialista financiero', async () => {
+  const orchestrator = new Orquestador({ llm: { configured: false } });
+  const response = await orchestrator.procesar('Hola, ¿me puedes ayudar a programar?');
+  assert.equal(response.agent, 'general');
+  assert.match(response.answer, /Groq|cálculos|explicaciones/i);
+});
+
+test('la calculadora local resuelve operaciones aritméticas sencillas sin eval', async () => {
+  const orchestrator = new Orquestador({ llm: { configured: false } });
+  const response = await orchestrator.procesar('¿Cuánto es 12 * (3 + 2)?');
+  assert.equal(response.agent, 'general');
+  assert.match(response.answer, /60/);
+});
+
+
+test('una pregunta conceptual sobre IVA se explica y no procesa el lote local', async () => {
+  const orchestrator = new Orquestador({ llm: { configured: false } });
+  const response = await orchestrator.procesar('Explícame qué es el IVA');
+  assert.equal(response.agent, 'general');
+  assert.match(response.answer, /Impuesto al Valor Agregado/i);
+  assert.match(response.answer, /impuesto indirecto/i);
+  assert.equal(response.result, null);
+  assert.doesNotMatch(response.answer, /Procesé 7 facturas/i);
+});
+
+test('las preguntas educativas van al modelo general sin pasar por el clasificador ambiguo', async () => {
+  let classifyCalls = 0;
+  let generalCalls = 0;
+  const llm = {
+    configured: true,
+    async classify() { classifyCalls += 1; throw new Error('No debería clasificar una pregunta conceptual'); },
+    async answerGeneral(message) { generalCalls += 1; return `Explicación directa de: ${message}`; },
+  };
+  const orchestrator = new Orquestador({ llm });
+  const response = await orchestrator.procesar('¿Qué significa crédito fiscal?');
+  assert.equal(response.agent, 'general');
+  assert.match(response.answer, /Explicación directa/);
+  assert.equal(classifyCalls, 0);
+  assert.equal(generalCalls, 1);
+});
+
+test('una consulta operativa por ID de factura sigue llegando al especialista de datos', async () => {
+  const orchestrator = new Orquestador({ llm: { configured: false } });
+  const response = await orchestrator.procesar('Explícame por qué F-004 fue rechazada');
+  assert.equal(response.agent, 'datos');
+  assert.match(response.answer, /F-004/i);
+});
