@@ -716,3 +716,39 @@ body.sidebar-collapsed .main-content {
   body.sidebar-collapsed .main-content { margin-left: 0; width: 100%; }
 }
 
+
+/* Registro de nuevas facturas */
+.panel-heading-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.new-invoice-button { min-height: 39px; white-space: nowrap; }
+.new-invoice-button > span { font-size: 17px; line-height: 1; }
+.invoice-create-dialog { width: min(720px, calc(100% - 24px)); max-width: 720px; max-height: min(92vh, 880px); padding: 0; overflow: auto; }
+.invoice-create-dialog .dialog-shell { padding: clamp(18px, 3vw, 28px); }
+.invoice-create-dialog .dialog-top { align-items: flex-start; }
+.invoice-create-dialog .dialog-top h2 { font-size: clamp(20px, 2.2vw, 25px); letter-spacing: -.7px; }
+.dialog-intro { max-width: 530px; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.invoice-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-top: 21px; }
+.invoice-field { display: flex; min-width: 0; flex-direction: column; gap: 7px; color: var(--text-soft); font-size: 12px; font-weight: 650; }
+.invoice-field > span, .invoice-field > label { color: var(--text-soft); font-size: 12px; font-weight: 650; }
+.invoice-field input, .invoice-field select { width: 100%; min-width: 0; min-height: 43px; padding: 10px 12px; border: 1px solid var(--stroke-strong); border-radius: 10px; background: var(--surface-raised); color: var(--text); font: inherit; font-weight: 450; outline-offset: 2px; }
+.invoice-field input::placeholder { color: var(--muted-2); }
+.invoice-field input:focus, .invoice-field select:focus { border-color: var(--accent); outline: 2px solid var(--accent-soft); }
+.invoice-field small { color: var(--muted); font-size: 10px; font-weight: 450; line-height: 1.5; }
+.field-span-2 { grid-column: 1 / -1; }
+.invoice-form-notice { margin-top: 19px; padding: 12px 14px; border: 1px solid var(--stroke); border-radius: 11px; background: var(--surface-soft); color: var(--muted); font-size: 11px; line-height: 1.65; }
+.invoice-form-notice.is-error { border-color: color-mix(in srgb, var(--red) 50%, transparent); color: var(--red); background: color-mix(in srgb, var(--red) 8%, var(--surface)); }
+.invoice-form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 19px; padding-top: 16px; border-top: 1px solid var(--stroke); }
+.invoice-form-actions .outline-button, .invoice-form-actions .primary-button { min-height: 42px; }
+.invoice-create-dialog::backdrop { background: rgba(5, 8, 17, .73); backdrop-filter: blur(5px); }
+@media (max-width: 760px) {
+  .panel-heading-actions { width: 100%; justify-content: space-between; }
+  .new-invoice-button { flex: 1; }
+  .invoice-create-dialog { max-height: 94vh; }
+  .invoice-form-grid { gap: 12px; }
+}
+@media (max-width: 480px) {
+  .invoice-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .field-span-2 { grid-column: auto; }
+  .invoice-form-actions { flex-direction: column-reverse; }
+  .invoice-form-actions .outline-button, .invoice-form-actions .primary-button { width: 100%; }
+  .dialog-intro { font-size: 11px; }
+}

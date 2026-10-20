@@ -44,3 +44,13 @@ test('el manifiesto identifica como primera opción el workflow unificado', asyn
   assert.equal(manifest.version, '1.2.0');
   assert.equal(manifest.workflows[0].file, 'FacturaBot_SUPER_Workflow_Groq.json');
 });
+
+
+test('el servidor expone la creación de facturas y persistencia local', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
+  assert.match(source, /req\.method === 'POST' && url\.pathname === '\/api\/invoices'/);
+  assert.match(source, /persistUserInvoices/);
+  assert.match(source, /Ya existe una factura/);
+  assert.match(source, /currentRawInvoices/);
+});

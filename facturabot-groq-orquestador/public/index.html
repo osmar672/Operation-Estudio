@@ -145,7 +145,7 @@
         <div class="panel invoices-panel" id="facturas">
           <div class="panel-heading">
             <div><div class="eyebrow">CONTROL DOCUMENTAL</div><h2>Facturas recientes</h2><p>Consulta, filtra y revisa los resultados del motor de validación.</p></div>
-            <button class="quiet-button" id="view-all" type="button">Ver todas <span>↗</span></button>
+            <div class="panel-heading-actions"><button class="primary-button new-invoice-button" id="new-invoice-button" type="button"><span aria-hidden="true">＋</span> Nueva factura</button><button class="quiet-button" id="view-all" type="button">Ver todas <span>↗</span></button></div>
           </div>
           <div class="table-toolbar">
             <label class="search-box"><span aria-hidden="true">⌕</span><input type="search" id="invoice-search" placeholder="Buscar por número, proveedor o estado…" aria-label="Buscar factura" autocomplete="off"><kbd>/</kbd></label>
@@ -217,6 +217,26 @@
     </main>
   </div>
 
+  <dialog class="invoice-dialog invoice-create-dialog" id="invoice-create-dialog" aria-labelledby="create-dialog-title">
+    <form class="dialog-shell invoice-form" id="invoice-create-form">
+      <div class="dialog-top"><div><div class="eyebrow">REGISTRO DOCUMENTAL</div><h2 id="create-dialog-title">Agregar nueva factura</h2><p class="dialog-intro">Ingresa los datos del comprobante. FacturaBot calculará los importes y ejecutará la validación.</p></div><button class="icon-button" id="close-create-dialog" type="button" aria-label="Cerrar formulario">×</button></div>
+      <div class="invoice-form-grid">
+        <label class="invoice-field"><span>Número de factura *</span><input id="new-invoice-id" name="id" maxlength="60" required placeholder="F-008" autocomplete="off"></label>
+        <label class="invoice-field"><span>Fecha de emisión *</span><input id="new-invoice-date" name="fecha" type="date" required></label>
+        <label class="invoice-field field-span-2"><span>Proveedor o emisor *</span><input id="new-invoice-provider" name="proveedor" maxlength="200" required placeholder="Nombre legal del proveedor" autocomplete="organization"></label>
+        <label class="invoice-field field-span-2"><span>Cédula jurídica *</span><input id="new-invoice-cedula" name="cedulaJuridica" maxlength="30" required placeholder="3-101-123456" autocomplete="off"><small>Se validará al registrar la factura.</small></label>
+        <label class="invoice-field"><span>Tipo de factura *</span><select id="new-invoice-type" name="tipo" required><option value="nacional">Nacional (IVA 13%)</option><option value="exenta">Exenta</option><option value="reducida">Tarifa reducida</option><option value="extranjera">Extranjera</option></select></label>
+        <label class="invoice-field" id="new-invoice-tax-field"><span>IVA (%)</span><input id="new-invoice-tax" name="porcentajeIVA" type="number" min="0" max="100" step="0.01" value="13"></label>
+        <div class="invoice-field" id="new-invoice-currency-field" hidden><label for="new-invoice-currency">Moneda de origen</label><select id="new-invoice-currency" name="moneda"><option value="USD">USD · Dólar estadounidense</option><option value="EUR">EUR · Euro</option><option value="GBP">GBP · Libra esterlina</option><option value="MXN">MXN · Peso mexicano</option><option value="CAD">CAD · Dólar canadiense</option></select></div>
+        <label class="invoice-field" id="new-invoice-rate-field" hidden><span>Tipo de cambio a CRC *</span><input id="new-invoice-rate" name="tipoCambio" type="number" min="0.000001" step="0.000001" placeholder="Ej. 510.00"></label>
+        <label class="invoice-field field-span-2"><span>Descripción del producto o servicio *</span><input id="new-invoice-description" name="descripcion" maxlength="250" required placeholder="Ej. Material de oficina"></label>
+        <label class="invoice-field"><span>Cantidad *</span><input id="new-invoice-quantity" name="cantidad" type="number" min="0.000001" step="any" value="1" required></label>
+        <label class="invoice-field"><span>Precio unitario (moneda de origen) *</span><input id="new-invoice-price" name="precioUnitario" type="number" min="0" step="0.01" required placeholder="0.00"></label>
+      </div>
+      <div class="invoice-form-notice" id="invoice-form-notice" role="status">Los datos se validarán antes de guardarlos. Las facturas con inconsistencias podrán registrarse como rechazadas para su revisión.</div>
+      <div class="invoice-form-actions"><button class="outline-button" id="cancel-create-invoice" type="button">Cancelar</button><button class="primary-button" id="save-new-invoice" type="submit"><span aria-hidden="true">✓</span> Guardar y validar factura</button></div>
+    </form>
+  </dialog>
   <dialog class="invoice-dialog" id="invoice-dialog" aria-labelledby="dialog-title"><div class="dialog-shell"><div class="dialog-top"><div><div class="eyebrow">DETALLE DOCUMENTAL</div><h2 id="dialog-title">Detalle de factura</h2></div><button class="icon-button dialog-close" id="close-dialog" type="button" aria-label="Cerrar detalle">×</button></div><div id="invoice-detail-content"></div><div class="dialog-footer"><span>Información del motor de validación</span><button class="outline-button" id="dialog-close-bottom" type="button">Cerrar</button></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>

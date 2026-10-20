@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, mkdir, writeFile, rename } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,11 +7,13 @@ import process from 'node:process';
 const env = process.env;
 import { GroqClient } from './services/groq-client.js';
 import { Orquestador } from './services/orchestrator.js';
-import { procesarLote } from './domain/invoices.js';
+import { procesarLote, FabricaFacturas } from './domain/invoices.js';
 import { sampleInvoices } from './data/sample-invoices.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const STORAGE_DIR = path.join(ROOT, 'storage');
+const USER_INVOICES_FILE = path.join(STORAGE_DIR, 'user-invoices.json');
 
 function loadEnvFile() {
   const file = path.join(ROOT, '.env');
@@ -36,6 +38,32 @@ const llm = new GroqClient();
 const orchestrator = new Orquestador({ llm });
 const rateWindows = new Map();
 const sessionBatches = new Map();
+let userInvoices = [];
+
+async function loadUserInvoices() {
+  try {
+    const content = await readFile(USER_INVOICES_FILE, 'utf8');
+    const parsed = JSON.parse(content);
+    userInvoices = Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object') : [];
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.error('[FacturaBot] No se pudieron cargar las facturas guardadas:', error.message);
+    userInvoices = [];
+  }
+}
+
+async function persistUserInvoices(invoices) {
+  await mkdir(STORAGE_DIR, { recursive: true });
+  const temporaryFile = `${USER_INVOICES_FILE}.tmp`;
+  await writeFile(temporaryFile, JSON.stringify(invoices, null, 2), { encoding: 'utf8', mode: 0o600 });
+  await rename(temporaryFile, USER_INVOICES_FILE);
+}
+
+function currentRawInvoices() { return [...sampleInvoices, ...userInvoices]; }
+function currentReport() {
+  const report = procesarLote(currentRawInvoices());
+  report.facturasRegistradas = userInvoices.length;
+  return report;
+}
 
 function normalizedSessionId(value) {
   return String(value || 'local').slice(0, 80).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -118,23 +146,81 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      json(res, 200, { ok: true, app: 'FacturaBot', version: '1.8.0', groqConfigured: llm.configured, model: llm.model, agents: orchestrator.listarAgentes().map((agent) => agent.nombre), dataPersistence: 'session-memory' });
+      json(res, 200, { ok: true, app: 'FacturaBot', version: '1.9.0', groqConfigured: llm.configured, model: llm.model, agents: orchestrator.listarAgentes().map((agent) => agent.nombre), dataPersistence: 'local-json+session-memory' });
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/invoices') {
-      json(res, 200, procesarLote(sampleInvoices));
+      const sessionId = url.searchParams.get('sessionId');
+      if (sessionId) rememberBatch(normalizedSessionId(sessionId), currentRawInvoices());
+      json(res, 200, currentReport());
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/invoices') {
+      if (!rateLimit(req, res, { limit: 30, bucket: 'invoice-create' })) return;
+      const body = await readBody(req, 100_000);
+      const raw = body.invoice && typeof body.invoice === 'object' ? body.invoice : body;
+      const id = String(raw.id ?? '').trim();
+      const proveedor = String(raw.proveedor ?? '').trim();
+      const cedulaJuridica = String(raw.cedulaJuridica ?? '').trim();
+      const fecha = String(raw.fecha ?? '').trim();
+      const tipo = String(raw.tipo ?? '').trim().toLowerCase();
+      if (!id || id.length > 60 || !proveedor || proveedor.length > 200 || !cedulaJuridica || cedulaJuridica.length > 30 || !fecha) {
+        json(res, 400, { error: 'Completa número, proveedor, cédula jurídica y fecha. Revisa también la longitud de los campos.' }); return;
+      }
+      if (!FabricaFacturas.tiposDisponibles().includes(tipo)) {
+        json(res, 400, { error: 'Selecciona un tipo de factura disponible.' }); return;
+      }
+      if ([...sampleInvoices, ...userInvoices].some((item) => String(item.id).toLocaleLowerCase('es-CR') === id.toLocaleLowerCase('es-CR'))) {
+        json(res, 409, { error: `Ya existe una factura con el número ${id}. Usa un número único.` }); return;
+      }
+      const rawLines = Array.isArray(raw.lineas) ? raw.lineas : [];
+      if (!rawLines.length || rawLines.length > 50) {
+        json(res, 400, { error: 'La factura debe incluir entre 1 y 50 líneas de producto o servicio.' }); return;
+      }
+      const lineas = [];
+      for (const line of rawLines) {
+        const descripcion = String(line?.descripcion ?? '').trim();
+        const cantidad = Number(line?.cantidad);
+        const precioUnitario = Number(line?.precioUnitario);
+        if (!descripcion || descripcion.length > 250 || !Number.isFinite(cantidad) || cantidad <= 0 || !Number.isFinite(precioUnitario) || precioUnitario < 0) {
+          json(res, 400, { error: 'Cada línea necesita descripción, cantidad mayor que cero y precio unitario no negativo.' }); return;
+        }
+        lineas.push({ descripcion, cantidad, precioUnitario });
+      }
+      const esExtranjera = tipo === 'extranjera';
+      const moneda = esExtranjera ? String(raw.moneda || 'USD').trim().toUpperCase() : 'CRC';
+      const tipoCambio = esExtranjera ? Number(raw.tipoCambio) : null;
+      if (esExtranjera && (!moneda || moneda === 'CRC' || !Number.isFinite(tipoCambio) || tipoCambio <= 0)) {
+        json(res, 400, { error: 'Para una factura extranjera, indica una moneda distinta de CRC y un tipo de cambio positivo.' }); return;
+      }
+      const porcentajeIVA = ['nacional', 'reducida'].includes(tipo) ? Number(raw.porcentajeIVA ?? (tipo === 'reducida' ? 0.04 : 0.13)) : undefined;
+      if (porcentajeIVA !== undefined && (!Number.isFinite(porcentajeIVA) || porcentajeIVA < 0 || porcentajeIVA > 1)) {
+        json(res, 400, { error: 'La tarifa IVA debe enviarse como decimal entre 0 y 1 (por ejemplo, 0.13 para 13%).' }); return;
+      }
+      const invoice = { id, tipo, proveedor, cedulaJuridica, fecha, moneda, tipoCambio, lineas };
+      if (porcentajeIVA !== undefined) invoice.porcentajeIVA = porcentajeIVA;
+      const updated = [...userInvoices, invoice];
+      await persistUserInvoices(updated);
+      userInvoices = updated;
+      const sessionId = normalizedSessionId(body.sessionId);
+      rememberBatch(sessionId, currentRawInvoices());
+      const report = currentReport();
+      const savedResult = report.resultados.find((item) => item.id === id);
+      json(res, 201, { ok: true, factura: savedResult, report });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/process') {
       if (!rateLimit(req, res, { limit: 30, bucket: 'process' })) return;
       const body = await readBody(req);
-      const invoices = body.invoices ?? sampleInvoices;
-      if (!Array.isArray(invoices) || invoices.length > 100) {
-        json(res, 400, { error: 'Envía una lista de hasta 100 facturas.' }); return;
+      const invoices = body.invoices ?? currentRawInvoices();
+      if (!Array.isArray(invoices) || invoices.length > 150) {
+        json(res, 400, { error: 'Envía una lista de hasta 150 facturas.' }); return;
       }
       const sessionId = normalizedSessionId(body.sessionId);
       rememberBatch(sessionId, invoices);
-      json(res, 200, procesarLote(invoices));
+      const report = procesarLote(invoices);
+      if (!body.invoices) report.facturasRegistradas = userInvoices.length;
+      json(res, 200, report);
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/assistant') {
@@ -169,7 +255,10 @@ const server = createServer(async (req, res) => {
   }
 });
 
+await loadUserInvoices();
+
 server.listen(PORT, HOST, () => {
+  console.log(`Facturas nuevas guardadas: ${userInvoices.length}`);
   console.log(`FacturaBot disponible en http://${HOST}:${PORT}`);
   console.log(`Groq: ${llm.configured ? `configurado (${llm.model})` : 'sin clave: modo local de demostración'}`);
   console.log('Para producción: configura autenticación, HTTPS, persistencia y monitoreo antes de exponerlo a Internet.');

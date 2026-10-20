@@ -11,6 +11,7 @@ const state = {
   sessionId: `session-${cryptoRandomId()}`,
   toastTimer: null,
   busy: false,
+  registeredInvoiceCount: 0,
   theme: 'dark',
 };
 
@@ -177,6 +178,7 @@ function renderAnalytics(report) {
 function renderReport(report) {
   state.report = report;
   state.allInvoices = Array.isArray(report.resultados) ? report.resultados : [];
+  state.registeredInvoiceCount = Number(report.facturasRegistradas ?? state.registeredInvoiceCount ?? 0);
   animateNumber($('#metric-total'), report.totalFacturado, (value) => currency(value));
   animateNumber($('#metric-approved'), report.aprobadas);
   animateNumber($('#metric-review'), report.revision);
@@ -184,7 +186,7 @@ function renderReport(report) {
   $('#approved-share').textContent = percent(report.aprobadas, report.cantidad);
   $('#rejected-share').textContent = percent(report.rechazadas, report.cantidad);
   renderAnalytics(report);
-  $('#table-source').textContent = state.activeInvoices ? 'CSV importado · Memoria de esta sesión' : 'Lote de demostración · Solo lectura';
+  $('#table-source').textContent = state.activeInvoices ? 'CSV importado · Memoria de esta sesión' : state.registeredInvoiceCount ? `${state.registeredInvoiceCount} factura(s) guardada(s) + demostración` : 'Lote de demostración · Solo lectura';
   $('#process-button').querySelector('span:nth-child(2)').textContent = state.activeInvoices ? 'Procesar lote importado' : 'Procesar lote';
   renderInvoices();
   renderImportHint();
@@ -237,7 +239,7 @@ async function loadInvoices() {
   try {
     const report = state.activeInvoices
       ? await api('/api/process', { method: 'POST', body: JSON.stringify({ invoices: state.activeInvoices, sessionId: state.sessionId }) })
-      : await api('/api/invoices');
+      : await api(`/api/invoices?sessionId=${encodeURIComponent(state.sessionId)}`);
     renderReport(report);
   } catch (error) {
     $('#invoice-table').innerHTML = `<tr><td colspan="6" class="empty-row">${escapeHtml(error.message)}</td></tr>`;
@@ -433,6 +435,118 @@ function closeMobileMenu() {
   $('#menu-button').setAttribute('aria-expanded', 'false');
 }
 
+function suggestInvoiceId() {
+  const used = new Set(state.allInvoices.map((invoice) => String(invoice.id || '').toUpperCase()));
+  let next = 1;
+  for (const id of used) {
+    const match = /^F-(\d+)$/.exec(id);
+    if (match) next = Math.max(next, Number(match[1]) + 1);
+  }
+  let candidate = `F-${String(next).padStart(3, '0')}`;
+  while (used.has(candidate)) { next += 1; candidate = `F-${String(next).padStart(3, '0')}`; }
+  return candidate;
+}
+function syncInvoiceTypeFields() {
+  const type = $('#new-invoice-type').value;
+  const isForeign = type === 'extranjera';
+  const hasTax = ['nacional', 'reducida'].includes(type);
+  $('#new-invoice-currency-field').hidden = !isForeign;
+  $('#new-invoice-rate-field').hidden = !isForeign;
+  $('#new-invoice-tax-field').hidden = !hasTax;
+  $('#new-invoice-rate').required = isForeign;
+  if (type === 'nacional' && $('#new-invoice-tax').dataset.lastType !== 'nacional') $('#new-invoice-tax').value = '13';
+  if (type === 'reducida' && $('#new-invoice-tax').dataset.lastType !== 'reducida') $('#new-invoice-tax').value = '4';
+  $('#new-invoice-tax').dataset.lastType = type;
+}
+function openNewInvoiceDialog() {
+  const form = $('#invoice-create-form');
+  form.reset();
+  $('#new-invoice-id').value = suggestInvoiceId();
+  $('#new-invoice-date').value = costaRicaISODate();
+  $('#new-invoice-type').value = 'nacional';
+  $('#new-invoice-tax').value = '13';
+  $('#new-invoice-quantity').value = '1';
+  $('#invoice-form-notice').textContent = 'Los datos se validarán antes de guardarlos. Las facturas con inconsistencias podrán registrarse como rechazadas para su revisión.';
+  $('#invoice-form-notice').classList.remove('is-error');
+  syncInvoiceTypeFields();
+  const dialog = $('#invoice-create-dialog');
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  $('#new-invoice-provider').focus();
+}
+function closeNewInvoiceDialog() {
+  const dialog = $('#invoice-create-dialog');
+  if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+  else dialog.removeAttribute('open');
+}
+async function saveNewInvoice(event) {
+  event.preventDefault();
+  if (state.busy) { showToast('Espera a que termine la operación actual.'); return; }
+  const type = $('#new-invoice-type').value;
+  const submit = $('#save-new-invoice');
+  const notice = $('#invoice-form-notice');
+  const invoice = {
+    id: $('#new-invoice-id').value.trim(),
+    proveedor: $('#new-invoice-provider').value.trim(),
+    cedulaJuridica: $('#new-invoice-cedula').value.trim(),
+    fecha: $('#new-invoice-date').value,
+    tipo: type,
+    moneda: type === 'extranjera' ? $('#new-invoice-currency').value : 'CRC',
+    tipoCambio: type === 'extranjera' ? Number($('#new-invoice-rate').value) : null,
+    lineas: [{
+      descripcion: $('#new-invoice-description').value.trim(),
+      cantidad: Number($('#new-invoice-quantity').value),
+      precioUnitario: Number($('#new-invoice-price').value),
+    }],
+  };
+  if (['nacional', 'reducida'].includes(type)) invoice.porcentajeIVA = Number($('#new-invoice-tax').value) / 100;
+  if (!invoice.id || !invoice.proveedor || !invoice.cedulaJuridica || !invoice.fecha || !invoice.lineas[0].descripcion
+      || !Number.isFinite(invoice.lineas[0].cantidad) || invoice.lineas[0].cantidad <= 0
+      || !Number.isFinite(invoice.lineas[0].precioUnitario) || invoice.lineas[0].precioUnitario < 0) {
+    notice.textContent = 'Completa todos los campos obligatorios con valores válidos.';
+    notice.classList.add('is-error');
+    return;
+  }
+  state.busy = true;
+  submit.disabled = true;
+  submit.innerHTML = '<span aria-hidden="true">↻</span> Guardando…';
+  notice.classList.remove('is-error');
+  notice.textContent = 'Guardando la factura y ejecutando la validación…';
+  try {
+    const response = await api('/api/invoices', {
+      method: 'POST',
+      body: JSON.stringify({ invoice, sessionId: state.sessionId }),
+    });
+    state.activeInvoices = null;
+    renderReport(response.report);
+    closeNewInvoiceDialog();
+    addActivity('Nueva factura registrada', `${response.factura.id} · ${response.factura.proveedor} · ${currency(response.factura.total)}`, '＋');
+    if (response.factura.estado === 'rechazada') {
+      showToast(`Factura ${response.factura.id} guardada, pero requiere correcciones. Revisa el detalle.`);
+      openInvoiceDetail(response.factura.id);
+    } else if (response.factura.estado === 'revision') {
+      showToast(`Factura ${response.factura.id} guardada. Requiere revisión humana por el importe.`);
+    } else {
+      showToast(`Factura ${response.factura.id} guardada y validada correctamente.`);
+    }
+  } catch (error) {
+    notice.textContent = error.message || 'No se pudo guardar la factura.';
+    notice.classList.add('is-error');
+    showToast(error.message || 'No se pudo guardar la factura.');
+  } finally {
+    state.busy = false;
+    submit.disabled = false;
+    submit.innerHTML = '<span aria-hidden="true">✓</span> Guardar y validar factura';
+  }
+}
+
+$('#new-invoice-button').addEventListener('click', openNewInvoiceDialog);
+$('#close-create-dialog').addEventListener('click', closeNewInvoiceDialog);
+$('#cancel-create-invoice').addEventListener('click', closeNewInvoiceDialog);
+$('#invoice-create-dialog').addEventListener('click', (event) => { if (event.target === $('#invoice-create-dialog')) closeNewInvoiceDialog(); });
+$('#invoice-create-form').addEventListener('submit', saveNewInvoice);
+$('#new-invoice-type').addEventListener('change', syncInvoiceTypeFields);
+
 $('#chat-form').addEventListener('submit', (event) => { event.preventDefault(); sendChat($('#chat-input').value); });
 $('#process-button').addEventListener('click', processBatch);
 $('#refresh-button').addEventListener('click', async () => {
@@ -536,8 +650,8 @@ $('#import-hint').addEventListener('click', async (event) => {
     const report = await api('/api/process', { method: 'POST', body: JSON.stringify({ sessionId: state.sessionId }) });
     state.activeInvoices = null;
     renderReport(report);
-    addActivity('Lote de demostración restaurado', 'Se volvió a cargar el conjunto original de siete facturas.', '↻');
-    showToast('Lote de demostración restaurado.');
+    addActivity('Lote base restaurado', 'Se recuperaron las facturas de demostración y se conservaron las facturas registradas.', '↻');
+    showToast('Lote base restaurado. Las facturas guardadas se conservaron.');
   } catch (error) { state.activeInvoices = previousBatch; renderImportHint(); showToast(error.message); }
 });
 document.addEventListener('keydown', (event) => {

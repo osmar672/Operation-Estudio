@@ -157,3 +157,8 @@ En escritorio, utiliza el botón de flecha junto al logotipo FacturaBot para con
 - Se ajustaron las instrucciones del clasificador para separar explicaciones teóricas de operaciones reales sobre facturas.
 - El modo local incluye explicaciones breves de conceptos frecuentes de facturación cuando Groq no está configurado.
 - Las consultas operativas identificadas por un número de factura conservan el enrutamiento al especialista de datos.
+
+
+## Registrar una factura nueva
+
+En la sección **Facturas**, utiliza **Nueva factura**. Completa el número, proveedor, cédula jurídica, fecha, tipo y al menos una línea de producto/servicio. Para facturas extranjeras también se solicita moneda y tipo de cambio; para nacionales o de tarifa reducida se puede ajustar el IVA. Al guardar, FacturaBot registra los datos en `storage/user-invoices.json`, vuelve a procesar el lote y muestra el estado de validación. Las facturas quedan guardadas después de reiniciar el servidor local. Evita usar datos reales sensibles en este prototipo: antes de producción hacen falta autenticación, autorización, auditoría y una base de datos con copias de seguridad.

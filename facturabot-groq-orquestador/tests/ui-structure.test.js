@@ -47,3 +47,15 @@ test('el menú lateral permite contraer y expandir desde su cabecera y conserva 
   assert.match(css, /body\.sidebar-collapsed/);
   assert.match(css, /@media \(max-width: 760px\)/);
 });
+
+
+test('el formulario de nueva factura está conectado a un endpoint de registro persistente', () => {
+  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
+  for (const id of ['new-invoice-button', 'invoice-create-dialog', 'invoice-create-form', 'new-invoice-id', 'new-invoice-provider', 'new-invoice-cedula', 'new-invoice-date', 'new-invoice-type', 'new-invoice-description', 'new-invoice-quantity', 'new-invoice-price', 'save-new-invoice']) {
+    assert.ok(ids.has(id), `Falta el control de registro #${id}`);
+  }
+  assert.match(js, /api\('\/api\/invoices'/);
+  assert.match(js, /function saveNewInvoice/);
+  assert.match(js, /syncInvoiceTypeFields/);
+  assert.match(css, /invoice-form-grid/);
+});
