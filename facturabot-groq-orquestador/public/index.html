@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f8f8">
+  <meta name="description" content="Panel operativo FacturaBot: validación de facturas, reportes y agente IA con Groq.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>FacturaBot — Gestión financiera inteligente</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/mondragon-theme.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#inicio" aria-label="FacturaBot, ir al inicio">
+        <span class="brand-mark" aria-hidden="true"><span class="brand-mark-main">F</span><span class="brand-mark-spark">✦</span></span>
+        <span class="brand-copy"><strong>Factura<span>Bot</span></strong><small>OPERATIONS STUDIO</small></span>
+      </a>
+      <div class="workspace-label">WORKSPACE <span class="workspace-dot"></span></div>
+      <nav class="navigation" aria-label="Navegación principal">
+        <a class="nav-item active" href="#inicio" data-nav="inicio"><span class="nav-icon" aria-hidden="true">◫</span><span>Resumen</span></a>
+        <a class="nav-item" href="#facturas" data-nav="facturas"><span class="nav-icon" aria-hidden="true">▤</span><span>Facturas</span><span class="nav-count" id="nav-count">7</span></a>
+        <a class="nav-item" href="#asistente" data-nav="asistente"><span class="nav-icon nav-ai" aria-hidden="true">✳</span><span>Agente IA</span><span class="nav-live" aria-label="Disponible"></span></a>
+        <a class="nav-item" href="#actividad" data-nav="actividad"><span class="nav-icon" aria-hidden="true">⌁</span><span>Actividad</span></a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-tip">
+        <div class="tip-orbit" aria-hidden="true"><span>✦</span></div>
+        <strong>Tu operación, más clara.</strong>
+        <p>Automatiza tareas repetitivas y deja las decisiones sensibles bajo revisión humana.</p>
+        <a href="#asistente">Hablar con FacturaBot <span>↗</span></a>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="connection-card">
+          <span class="connection-indicator" id="connection-indicator"></span>
+          <div><strong id="connection-title">Comprobando conexión</strong><small id="connection-detail">Servidor local</small></div>
+        </div>
+        <div class="profile"><div class="avatar">FB</div><div class="profile-copy"><strong>Administración</strong><small>Entorno de demostración</small></div><span class="profile-tag">LOCAL</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="inicio">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button menu-button" id="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
+          <div class="breadcrumbs"><span class="crumb-home">Workspace</span><span class="crumb-separator">/</span><strong id="current-section">Resumen</strong></div>
+        </div>
+        <div class="topbar-actions">
+          <div class="environment-pill"><span class="environment-dot"></span><span>ENTORNO DEMO</span></div>
+          <span class="topbar-divider"></span>
+          <span class="date-chip" id="today-label">Hoy</span>
+          <button class="icon-button" id="theme-button" type="button" title="Cambiar tema" aria-label="Cambiar tema">☼</button>
+          <button class="icon-button refresh-button" id="refresh-button" type="button" title="Actualizar datos" aria-label="Actualizar datos">↻</button>
+        </div>
+      </header>
+
+      <section class="welcome-row section-enter">
+        <div class="welcome-copy">
+          <div class="eyebrow"><span class="eyebrow-line"></span>CENTRO DE CONTROL <span class="eyebrow-separator">/</span> <span id="weekday-label">OPERACIONES</span></div>
+          <h1>Todo en orden<span class="title-period">.</span></h1>
+          <p>Supervisa las facturas, revisa alertas y coordina tus tareas desde un solo lugar.</p>
+        </div>
+        <div class="welcome-actions">
+          <span class="last-updated"><span class="pulse-dot"></span><span id="last-updated">Esperando datos</span></span>
+          <button class="primary-button" id="process-button" type="button"><span class="button-icon">▶</span><span>Procesar lote</span><span class="button-arrow">↗</span></button>
+        </div>
+      </section>
+
+      <section class="metrics-grid" aria-label="Indicadores del lote">
+        <article class="metric-card metric-total">
+          <div class="metric-top"><span>Total procesable</span><span class="metric-icon icon-blue">₡</span></div>
+          <div class="metric-value" id="metric-total">—</div>
+          <div class="metric-foot"><span class="metric-inline-dot blue-dot"></span><span>CRC · Lote actual</span></div>
+          <div class="metric-decoration" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span>Aprobadas</span><span class="metric-icon icon-green">✓</span></div>
+          <div class="metric-value" id="metric-approved">—</div>
+          <div class="metric-foot"><span class="metric-positive" id="approved-share">—</span><span> del lote aprobado</span></div>
+          <div class="metric-bottom-line line-green"></div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span>En revisión</span><span class="metric-icon icon-amber">⌕</span></div>
+          <div class="metric-value" id="metric-review">—</div>
+          <div class="metric-foot"><span class="metric-warning">Requieren validación humana</span></div>
+          <div class="metric-bottom-line line-amber"></div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-top"><span>Rechazadas</span><span class="metric-icon icon-red">!</span></div>
+          <div class="metric-value" id="metric-rejected">—</div>
+          <div class="metric-foot"><span class="metric-danger" id="rejected-share">—</span><span> pendientes de corrección</span></div>
+          <div class="metric-bottom-line line-red"></div>
+        </article>
+      </section>
+
+      <section class="analytics-grid" aria-label="Análisis gráfico del lote">
+        <article class="panel analytics-card amount-chart-card">
+          <div class="panel-heading compact chart-heading">
+            <div><div class="eyebrow">ANÁLISIS DE DOCUMENTOS</div><h2>Importe por factura</h2><p>Comparación de importes del lote seleccionado.</p></div>
+            <span class="chart-kicker">CRC · LOTE ACTUAL</span>
+          </div>
+          <div class="chart-summary-row"><strong id="chart-amount-total">—</strong><span>total procesable</span><span class="chart-summary-divider"></span><span id="chart-amount-count">— documentos</span></div>
+          <div class="amount-chart" id="invoice-amount-chart" aria-label="Gráfico de importes por factura"><div class="chart-placeholder"><span class="chart-loader"></span> Cargando gráfico…</div></div>
+          <div class="chart-footnote"><span class="chart-footnote-dot"></span> Selecciona una barra para abrir el detalle de la factura.</div>
+        </article>
+
+        <article class="panel analytics-card status-chart-card">
+          <div class="panel-heading compact chart-heading">
+            <div><div class="eyebrow">VALIDACIÓN AUTOMÁTICA</div><h2>Estado del lote</h2><p>Resultado de las reglas deterministas.</p></div>
+          </div>
+          <div class="donut-layout">
+            <div class="status-donut" id="status-donut" role="img" aria-label="Distribución por estado">
+              <svg class="status-donut-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+                <circle class="donut-track-ring" cx="60" cy="60" r="46"></circle>
+                <circle class="donut-segment donut-approved" data-donut-segment="approved" cx="60" cy="60" r="46" stroke-dasharray="0 289.027" stroke-dashoffset="0"></circle>
+                <circle class="donut-segment donut-review" data-donut-segment="review" cx="60" cy="60" r="46" stroke-dasharray="0 289.027" stroke-dashoffset="0"></circle>
+                <circle class="donut-segment donut-rejected" data-donut-segment="rejected" cx="60" cy="60" r="46" stroke-dasharray="0 289.027" stroke-dashoffset="0"></circle>
+              </svg>
+              <div class="donut-hole"><strong id="status-donut-count">—</strong><span>facturas</span></div>
+            </div>
+            <div class="donut-legend" id="status-donut-legend">
+              <div class="chart-placeholder">Calculando distribución…</div>
+            </div>
+          </div>
+          <div class="chart-footnote"><span class="chart-footnote-dot"></span> Las rechazadas requieren corrección antes de continuar.</div>
+        </article>
+
+        <article class="panel analytics-card tax-chart-card">
+          <div class="panel-heading compact chart-heading">
+            <div><div class="eyebrow">CONTROL TRIBUTARIO</div><h2>IVA calculado por tipo</h2><p>Importe de impuesto por categoría de factura.</p></div>
+          </div>
+          <div class="tax-chart-summary"><strong id="chart-tax-total">—</strong><span>IVA / impuesto computado</span></div>
+          <div class="tax-chart" id="tax-type-chart" aria-label="Gráfico de IVA por tipo de factura"><div class="chart-placeholder">Calculando impuestos…</div></div>
+          <div class="chart-footnote"><span class="chart-footnote-dot"></span> No incluye importes de facturas rechazadas.</div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <div class="panel invoices-panel" id="facturas">
+          <div class="panel-heading">
+            <div><div class="eyebrow">CONTROL DOCUMENTAL</div><h2>Facturas recientes</h2><p>Consulta, filtra y revisa los resultados del motor de validación.</p></div>
+            <button class="quiet-button" id="view-all" type="button">Ver todas <span>↗</span></button>
+          </div>
+          <div class="table-toolbar">
+            <label class="search-box"><span aria-hidden="true">⌕</span><input type="search" id="invoice-search" placeholder="Buscar por número, proveedor o estado…" aria-label="Buscar factura" autocomplete="off"><kbd>/</kbd></label>
+            <div class="toolbar-actions">
+              <label class="select-wrap"><span class="sr-only">Filtrar por estado</span><select id="status-filter" aria-label="Filtrar por estado"><option value="todos">Todos los estados</option><option value="aprobada">Aprobadas</option><option value="revision">En revisión</option><option value="rechazada">Rechazadas</option></select></label>
+              <button class="outline-button" id="template-button" type="button"><span>＋</span> Plantilla</button>
+              <button class="outline-button" id="import-button" type="button"><span>↑</span> Importar CSV</button>
+              <input id="csv-file" type="file" accept=".csv,text/csv" hidden>
+              <button class="outline-button export-button" id="export-button" type="button"><span>↓</span> Exportar</button>
+            </div>
+          </div>
+          <div class="import-hint" id="import-hint" hidden></div>
+          <div class="table-wrap"><table><thead><tr><th>FACTURA</th><th>PROVEEDOR</th><th>TIPO</th><th class="amount-heading">TOTAL CRC</th><th>ESTADO</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody id="invoice-table"><tr><td colspan="6" class="empty-row"><span class="loading-line"></span> Cargando registros…</td></tr></tbody></table></div>
+          <div class="table-footer"><span id="table-count">Cargando facturas</span><span class="table-footer-note"><span class="legend-dot"></span><span id="table-source">Motor de validación · Solo lectura</span></span></div>
+        </div>
+
+        <div class="right-column">
+          <section class="panel health-panel">
+            <div class="panel-heading compact"><div><div class="eyebrow">ESTADO DEL SISTEMA</div><h2>Motor de operaciones</h2></div><span class="healthy-label" id="system-status"><span></span> Comprobando</span></div>
+            <div class="health-list">
+              <div><span class="health-symbol symbol-indigo">✓</span><span><strong>Validación POO</strong><small>Fábrica, herencia y reglas</small></span><span class="health-state state-ok">Activa</span></div>
+              <div><span class="health-symbol symbol-blue">↗</span><span><strong>Agentes especialistas</strong><small>Enrutamiento y herramientas</small></span><span class="health-state" id="agent-count">5 agentes</span></div>
+              <div><span class="health-symbol symbol-violet">✳</span><span><strong>Modelo Groq</strong><small id="groq-description">Verificando configuración</small></span><span class="health-state" id="groq-status">—</span></div>
+            </div>
+            <div class="health-note"><span aria-hidden="true">i</span><p>Los importes son demostrativos. Revisa manualmente los casos marcados antes de cualquier registro contable.</p></div>
+          </section>
+          <section class="panel fiscal-panel">
+            <div class="panel-heading compact"><div><div class="eyebrow">VISTA FISCAL</div><h2>Resumen contable</h2><p>Importes consolidados del lote activo.</p></div><span class="fiscal-icon" aria-hidden="true">₡</span></div>
+            <div class="fiscal-summary-list">
+              <div class="fiscal-summary-item"><span><i class="fiscal-summary-dot dot-teal"></i>Total procesable</span><strong id="summary-base">—</strong></div>
+              <div class="fiscal-summary-item"><span><i class="fiscal-summary-dot dot-blue"></i>IVA calculado</span><strong id="summary-iva">—</strong></div>
+              <div class="fiscal-summary-item"><span><i class="fiscal-summary-dot dot-green"></i>Porcentaje aprobado</span><strong id="summary-approval">—</strong></div>
+              <div class="fiscal-summary-item"><span><i class="fiscal-summary-dot dot-amber"></i>Límite de revisión</span><strong id="summary-limit">—</strong></div>
+            </div>
+            <div class="fiscal-notice"><span aria-hidden="true">i</span><p>Este panel es informativo. Confirma manualmente cada documento antes de registrarlo en un sistema contable oficial.</p></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel assistant-panel" id="asistente">
+        <div class="assistant-header">
+          <div class="assistant-brand"><div class="assistant-logo" aria-hidden="true"><span>✳</span><i></i></div><div><div class="eyebrow">FACTURABOT INTELIGENTE</div><h2>Tu asistente de operaciones</h2><p>Pregunta por el lote, solicita análisis o prepara una comunicación.</p></div></div>
+          <span class="model-chip" id="model-chip"><span class="model-chip-dot"></span><span>Modo local disponible</span></span>
+        </div>
+        <div class="assistant-layout">
+          <div class="suggestion-column"><div class="suggestion-heading"><span class="mini-label">EMPIEZA CON UNA IDEA</span><span class="suggestion-spark">✦</span></div>
+            <button class="suggestion" data-prompt="Procesa las facturas de prueba y dame los totales." type="button"><span class="suggestion-icon icon-suggestion-blue">▤</span><span class="suggestion-copy"><strong>Resumen del lote</strong><small>Totales, IVA y estados</small></span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Resume las facturas rechazadas y explica por qué." type="button"><span class="suggestion-icon icon-suggestion-red">!</span><span class="suggestion-copy"><strong>Explicar rechazos</strong><small>Detecta qué corregir</small></span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion" data-prompt="¿Cuánto IVA se calculó y cuáles facturas están en revisión?" type="button"><span class="suggestion-icon icon-suggestion-green">₡</span><span class="suggestion-copy"><strong>Consultar el IVA</strong><small>Revisa los montos</small></span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion" data-prompt="Redacta un correo para solicitar la corrección de la factura F-004." type="button"><span class="suggestion-icon icon-suggestion-violet">✉</span><span class="suggestion-copy"><strong>Redactar correo</strong><small>Preparar borrador</small></span><span class="suggestion-arrow">↗</span></button>
+            <div class="tool-note"><span class="tool-note-icon">◇</span><span>La IA interpreta la intención. Los cálculos y estados siempre proceden del motor verificable.</span></div>
+          </div>
+          <div class="chat-card">
+            <div class="chat-top"><div class="chat-status"><span></span><div><strong>Asistente de operaciones</strong><small id="chat-mode-text">Listo para ayudarte</small></div></div><button class="text-button" id="clear-chat" type="button">↻ Reiniciar</button></div>
+            <div class="chat-messages" id="chat-messages" aria-live="polite" aria-relevant="additions text">
+              <div class="message-row assistant"><div class="message-avatar">F<span>✦</span></div><div class="message-bubble"><p>¡Hola! Soy FacturaBot. Puedo ayudarte a revisar facturas, consultar datos, generar reportes o preparar borradores de correo.</p><p class="message-muted">Conecta tu clave en <code>.env</code> para habilitar Groq. Sin ella, puedes probar las herramientas con el modo local.</p></div></div>
+            </div>
+            <form class="chat-form" id="chat-form"><label class="sr-only" for="chat-input">Mensaje para el asistente</label><input id="chat-input" maxlength="2000" placeholder="Escribe tu consulta aquí…" autocomplete="off"><button type="submit" class="send-button" id="send-button" aria-label="Enviar mensaje"><span>↑</span></button></form>
+            <div class="chat-disclaimer"><span>◇</span> Los borradores no se envían y la memoria se mantiene solo durante esta sesión del servidor.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel activity-panel" id="actividad">
+        <div class="panel-heading compact"><div><div class="eyebrow">TRAZABILIDAD</div><h2>Actividad reciente</h2><p>Acciones ejecutadas durante esta sesión de demostración.</p></div><span class="activity-count" id="activity-count">0 eventos</span></div>
+        <div class="activity-list" id="activity-list"><div class="activity-empty"><span class="activity-empty-icon">⌁</span><span>Aquí aparecerán las acciones que ejecutes.</span></div></div>
+      </section>
+      <footer class="footer"><span class="footer-brand"><span class="footer-mark">F</span> FacturaBot <span class="footer-dot">·</span> POO + Orquestación IA</span><span>Datos demostrativos <span class="footer-dot">·</span> No es un sistema fiscal certificado</span></footer>
+    </main>
+  </div>
+
+  <dialog class="invoice-dialog" id="invoice-dialog" aria-labelledby="dialog-title"><div class="dialog-shell"><div class="dialog-top"><div><div class="eyebrow">DETALLE DOCUMENTAL</div><h2 id="dialog-title">Detalle de factura</h2></div><button class="icon-button dialog-close" id="close-dialog" type="button" aria-label="Cerrar detalle">×</button></div><div id="invoice-detail-content"></div><div class="dialog-footer"><span>Información del motor de validación</span><button class="outline-button" id="dialog-close-bottom" type="button">Cerrar</button></div></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

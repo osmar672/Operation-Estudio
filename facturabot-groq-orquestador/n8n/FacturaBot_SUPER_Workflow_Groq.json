@@ -1,0 +1,571 @@
+{
+  "name": "FacturaBot SUPER | Groq + Orquestador IA + POO + Reporte",
+  "nodes": [
+    {
+      "parameters": {
+        "public": false,
+        "initialMessages": "Hola. Soy el orquestador de FacturaBot. Puedo procesar el lote, consultar facturas, generar reportes y redactar correos.",
+        "options": {}
+      },
+      "id": "b245c1b4-9365-4807-b7b4-88708125d2ca",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "Eres el agente orquestador de FacturaBot. Responde siempre en español. Entiende la intención, delega cada tarea a un especialista y consolida sus resultados. Usa Agente de facturas para procesar/validar facturas, Agente de datos para consultar una factura o cifras concretas, Agente de reportes para resúmenes/KPI/auditoría, Agente de correo para redactar borradores y Agente de archivos para orientar sobre la estructura de documentos. No inventes importes ni cambies resultados del motor de validación. No declares haber enviado correos, consultado una base externa o leído un PDF si no ocurrió. Si faltan datos, pregunta. Los resultados son de demostración.",
+          "maxIterations": 6
+        }
+      },
+      "id": "2dbf6c15-a9a9-4f07-b81b-a4292786256e",
+      "name": "AI Agent | Orquestador",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "openai/gpt-oss-120b",
+          "mode": "list",
+          "cachedResultName": "openai/gpt-oss-120b"
+        },
+        "options": {
+          "temperature": 0.15,
+          "maxTokensToSample": 1200
+        }
+      },
+      "id": "b82b6251-5606-4fd3-a5e9-b8318884ddbe",
+      "name": "Groq Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "sessionKey": "={{ $json.sessionId || $json.chatInput }}",
+        "contextWindowLength": 8
+      },
+      "id": "ee2b2d5e-3d8d-4e29-b58a-48ff89342fd9",
+      "name": "Memoria de conversación",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "name": "tool_facturas",
+        "description": "Procesa el lote demostrativo y devuelve estados, montos, IVA y resumen. Úsala para ejecutar/revisar facturas y para calcular importes.",
+        "language": "javaScript",
+        "jsCode": "const consulta = typeof query === 'string' ? query : JSON.stringify(query ?? '');\nconst facturas = [{\"id\":\"F-001\",\"tipo\":\"nacional\",\"proveedor\":\"Suministros La Central\",\"cedulaJuridica\":\"3-101-123456\",\"fecha\":\"2026-09-12\",\"moneda\":\"CRC\",\"subtotal\":50000,\"impuesto\":6500,\"total\":56500,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-002\",\"tipo\":\"exenta\",\"proveedor\":\"Fundación Horizonte\",\"cedulaJuridica\":\"3-101-234567\",\"fecha\":\"2026-09-13\",\"moneda\":\"CRC\",\"subtotal\":150000,\"impuesto\":0,\"total\":150000,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-003\",\"tipo\":\"extranjera\",\"proveedor\":\"Global Office LLC\",\"cedulaJuridica\":\"3-101-345678\",\"fecha\":\"2026-09-14\",\"moneda\":\"USD\",\"subtotal\":2500,\"impuesto\":0,\"total\":1275000,\"estado\":\"revision\",\"motivo\":\"2 500 USD × 510 = ₡1 275 000; supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-004\",\"tipo\":\"nacional\",\"proveedor\":\"Proveedor con identificación inválida\",\"cedulaJuridica\":\"2-101-123456\",\"fecha\":\"2026-09-15\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Cédula jurídica inválida.\"},{\"id\":\"F-005\",\"tipo\":\"nacional\",\"proveedor\":\"Equipos del Valle\",\"cedulaJuridica\":\"3-101-456789\",\"fecha\":\"2026-09-16\",\"moneda\":\"CRC\",\"subtotal\":1000000,\"impuesto\":130000,\"total\":1130000,\"estado\":\"revision\",\"motivo\":\"Supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-006\",\"tipo\":\"credito\",\"proveedor\":\"Proveedor desconocido\",\"cedulaJuridica\":\"3-101-567890\",\"fecha\":\"2026-09-17\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Tipo desconocido (fábrica).\"},{\"id\":\"F-007\",\"tipo\":\"nacional\",\"proveedor\":\"Comercial del Futuro\",\"cedulaJuridica\":\"3-101-678901\",\"fecha\":\"2099-01-01\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Fecha futura.\"}];\nconst validas = facturas.filter(f => f.estado !== 'rechazada');\nconst resumen = {\n  cantidad: facturas.length,\n  aprobadas: facturas.filter(f => f.estado === 'aprobada').length,\n  revision: facturas.filter(f => f.estado === 'revision').length,\n  rechazadas: facturas.filter(f => f.estado === 'rechazada').length,\n  totalFacturadoCRC: validas.reduce((s, f) => s + (Number(f.total) || 0), 0),\n  ivaCRC: validas.reduce((s, f) => s + (Number(f.impuesto) || 0), 0)\n};\nconst id = consulta.match(/F-\\d{3}/i)?.[0]?.toUpperCase();\nconst objetivo = id ? facturas.filter(f => f.id === id) : facturas;\nreturn JSON.stringify({tipo:'resultado_facturas',resumen,consultaPorId:id||null,facturas:objetivo.map(f=>({id:f.id,tipo:f.tipo,proveedor:f.proveedor,totalCRC:f.total,ivaCRC:f.impuesto,estado:f.estado,motivo:f.motivo})),nota:'Lote de demostración; las cifras no son registros contables reales.'});"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        470
+      ],
+      "id": "75d92217-832d-4ddb-b866-f9a82f372e38",
+      "name": "Herramienta IA | Facturas"
+    },
+    {
+      "parameters": {
+        "name": "tool_datos",
+        "description": "Consulta una factura por ID (por ejemplo F-004) o devuelve los indicadores generales del lote demostrativo.",
+        "language": "javaScript",
+        "jsCode": "const consulta = typeof query === 'string' ? query : JSON.stringify(query ?? '');\nconst facturas = [{\"id\":\"F-001\",\"tipo\":\"nacional\",\"proveedor\":\"Suministros La Central\",\"cedulaJuridica\":\"3-101-123456\",\"fecha\":\"2026-09-12\",\"moneda\":\"CRC\",\"subtotal\":50000,\"impuesto\":6500,\"total\":56500,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-002\",\"tipo\":\"exenta\",\"proveedor\":\"Fundación Horizonte\",\"cedulaJuridica\":\"3-101-234567\",\"fecha\":\"2026-09-13\",\"moneda\":\"CRC\",\"subtotal\":150000,\"impuesto\":0,\"total\":150000,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-003\",\"tipo\":\"extranjera\",\"proveedor\":\"Global Office LLC\",\"cedulaJuridica\":\"3-101-345678\",\"fecha\":\"2026-09-14\",\"moneda\":\"USD\",\"subtotal\":2500,\"impuesto\":0,\"total\":1275000,\"estado\":\"revision\",\"motivo\":\"2 500 USD × 510 = ₡1 275 000; supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-004\",\"tipo\":\"nacional\",\"proveedor\":\"Proveedor con identificación inválida\",\"cedulaJuridica\":\"2-101-123456\",\"fecha\":\"2026-09-15\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Cédula jurídica inválida.\"},{\"id\":\"F-005\",\"tipo\":\"nacional\",\"proveedor\":\"Equipos del Valle\",\"cedulaJuridica\":\"3-101-456789\",\"fecha\":\"2026-09-16\",\"moneda\":\"CRC\",\"subtotal\":1000000,\"impuesto\":130000,\"total\":1130000,\"estado\":\"revision\",\"motivo\":\"Supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-006\",\"tipo\":\"credito\",\"proveedor\":\"Proveedor desconocido\",\"cedulaJuridica\":\"3-101-567890\",\"fecha\":\"2026-09-17\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Tipo desconocido (fábrica).\"},{\"id\":\"F-007\",\"tipo\":\"nacional\",\"proveedor\":\"Comercial del Futuro\",\"cedulaJuridica\":\"3-101-678901\",\"fecha\":\"2099-01-01\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Fecha futura.\"}];\nconst id = consulta.match(/F-\\d{3}/i)?.[0]?.toUpperCase();\nif (id) {\n const factura = facturas.find(f => f.id === id);\n return JSON.stringify(factura ? {tipo:'consulta_factura',factura} : {error:`No se encontró la factura ${id}.`});\n}\nconst validas = facturas.filter(f => f.estado !== 'rechazada');\nreturn JSON.stringify({tipo:'resumen_datos',cantidad:facturas.length,aprobadas:facturas.filter(f=>f.estado==='aprobada').length,revision:facturas.filter(f=>f.estado==='revision').length,rechazadas:facturas.filter(f=>f.estado==='rechazada').length,totalFacturadoCRC:validas.reduce((s,f)=>s+(Number(f.total)||0),0),ivaCRC:validas.reduce((s,f)=>s+(Number(f.impuesto)||0),0),nota:'Lote de demostración.'});"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        790,
+        470
+      ],
+      "id": "c4216307-d2b9-422b-ae47-690bd786aab8",
+      "name": "Herramienta IA | Datos"
+    },
+    {
+      "parameters": {
+        "name": "tool_reportes",
+        "description": "Genera reporte de control, KPI financieros, distribución de estados y hallazgos de auditoría del lote.",
+        "language": "javaScript",
+        "jsCode": "const consulta = typeof query === 'string' ? query : JSON.stringify(query ?? '');\nconst facturas = [{\"id\":\"F-001\",\"tipo\":\"nacional\",\"proveedor\":\"Suministros La Central\",\"cedulaJuridica\":\"3-101-123456\",\"fecha\":\"2026-09-12\",\"moneda\":\"CRC\",\"subtotal\":50000,\"impuesto\":6500,\"total\":56500,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-002\",\"tipo\":\"exenta\",\"proveedor\":\"Fundación Horizonte\",\"cedulaJuridica\":\"3-101-234567\",\"fecha\":\"2026-09-13\",\"moneda\":\"CRC\",\"subtotal\":150000,\"impuesto\":0,\"total\":150000,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-003\",\"tipo\":\"extranjera\",\"proveedor\":\"Global Office LLC\",\"cedulaJuridica\":\"3-101-345678\",\"fecha\":\"2026-09-14\",\"moneda\":\"USD\",\"subtotal\":2500,\"impuesto\":0,\"total\":1275000,\"estado\":\"revision\",\"motivo\":\"2 500 USD × 510 = ₡1 275 000; supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-004\",\"tipo\":\"nacional\",\"proveedor\":\"Proveedor con identificación inválida\",\"cedulaJuridica\":\"2-101-123456\",\"fecha\":\"2026-09-15\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Cédula jurídica inválida.\"},{\"id\":\"F-005\",\"tipo\":\"nacional\",\"proveedor\":\"Equipos del Valle\",\"cedulaJuridica\":\"3-101-456789\",\"fecha\":\"2026-09-16\",\"moneda\":\"CRC\",\"subtotal\":1000000,\"impuesto\":130000,\"total\":1130000,\"estado\":\"revision\",\"motivo\":\"Supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-006\",\"tipo\":\"credito\",\"proveedor\":\"Proveedor desconocido\",\"cedulaJuridica\":\"3-101-567890\",\"fecha\":\"2026-09-17\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Tipo desconocido (fábrica).\"},{\"id\":\"F-007\",\"tipo\":\"nacional\",\"proveedor\":\"Comercial del Futuro\",\"cedulaJuridica\":\"3-101-678901\",\"fecha\":\"2099-01-01\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Fecha futura.\"}];\nconst validas = facturas.filter(f => f.estado !== 'rechazada');\nconst reporte = {\n titulo:'Reporte de control FacturaBot',\n generadoEn:new Date().toISOString(),\n lote:{cantidad:facturas.length,aprobadas:facturas.filter(f=>f.estado==='aprobada').length,revision:facturas.filter(f=>f.estado==='revision').length,rechazadas:facturas.filter(f=>f.estado==='rechazada').length},\n finanzas:{moneda:'CRC',totalProcesableCRC:validas.reduce((s,f)=>s+(Number(f.total)||0),0),ivaCRC:validas.reduce((s,f)=>s+(Number(f.impuesto)||0),0),umbralRevisionCRC:1000000},\n hallazgos:facturas.filter(f=>f.estado!=='aprobada').map(f=>({id:f.id,estado:f.estado,motivo:f.motivo})),\n nota:'Datos demostrativos. Confirme criterios fiscales antes de usar en producción.'\n};\nreturn JSON.stringify(reporte);"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1020,
+        470
+      ],
+      "id": "2e296769-f767-4237-88db-2d4588c5b1b3",
+      "name": "Herramienta IA | Reportes"
+    },
+    {
+      "parameters": {
+        "name": "tool_correo",
+        "description": "Redacta un borrador de correo para solicitar correcciones. No envía correos. Pide un ID de factura si aplica.",
+        "language": "javaScript",
+        "jsCode": "const consulta = typeof query === 'string' ? query : JSON.stringify(query ?? '');\nconst facturas = [{\"id\":\"F-001\",\"tipo\":\"nacional\",\"proveedor\":\"Suministros La Central\",\"cedulaJuridica\":\"3-101-123456\",\"fecha\":\"2026-09-12\",\"moneda\":\"CRC\",\"subtotal\":50000,\"impuesto\":6500,\"total\":56500,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-002\",\"tipo\":\"exenta\",\"proveedor\":\"Fundación Horizonte\",\"cedulaJuridica\":\"3-101-234567\",\"fecha\":\"2026-09-13\",\"moneda\":\"CRC\",\"subtotal\":150000,\"impuesto\":0,\"total\":150000,\"estado\":\"aprobada\",\"motivo\":\"\"},{\"id\":\"F-003\",\"tipo\":\"extranjera\",\"proveedor\":\"Global Office LLC\",\"cedulaJuridica\":\"3-101-345678\",\"fecha\":\"2026-09-14\",\"moneda\":\"USD\",\"subtotal\":2500,\"impuesto\":0,\"total\":1275000,\"estado\":\"revision\",\"motivo\":\"2 500 USD × 510 = ₡1 275 000; supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-004\",\"tipo\":\"nacional\",\"proveedor\":\"Proveedor con identificación inválida\",\"cedulaJuridica\":\"2-101-123456\",\"fecha\":\"2026-09-15\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Cédula jurídica inválida.\"},{\"id\":\"F-005\",\"tipo\":\"nacional\",\"proveedor\":\"Equipos del Valle\",\"cedulaJuridica\":\"3-101-456789\",\"fecha\":\"2026-09-16\",\"moneda\":\"CRC\",\"subtotal\":1000000,\"impuesto\":130000,\"total\":1130000,\"estado\":\"revision\",\"motivo\":\"Supera el límite de revisión de ₡1 000 000.\"},{\"id\":\"F-006\",\"tipo\":\"credito\",\"proveedor\":\"Proveedor desconocido\",\"cedulaJuridica\":\"3-101-567890\",\"fecha\":\"2026-09-17\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Tipo desconocido (fábrica).\"},{\"id\":\"F-007\",\"tipo\":\"nacional\",\"proveedor\":\"Comercial del Futuro\",\"cedulaJuridica\":\"3-101-678901\",\"fecha\":\"2099-01-01\",\"moneda\":\"CRC\",\"subtotal\":null,\"impuesto\":null,\"total\":null,\"estado\":\"rechazada\",\"motivo\":\"Fecha futura.\"}];\nconst id = consulta.match(/F-\\d{3}/i)?.[0]?.toUpperCase();\nconst f = facturas.find(x=>x.id===id) || facturas.find(x=>x.estado==='rechazada') || facturas.find(x=>x.estado==='revision');\nconst referencia = f ? f.id : 'la factura pendiente';\nconst motivo = f?.motivo || 'Hay información que requiere verificación.';\nconst salida = {especialista:'correo',enviado:false,destinatario:'[Completar correo del proveedor]',asunto:`Solicitud de revisión documental - ${referencia}`,cuerpo:`Estimado proveedor:\\n\\nDurante la revisión de ${referencia}${f ? ` (${f.proveedor})` : ''}, identificamos lo siguiente: ${motivo}\\n\\nPor favor, remita la documentación corregida para continuar el proceso.\\n\\nSaludos cordiales,\\nDepartamento de Administración`,advertencia:'Borrador únicamente: no se envió ningún correo. Revise datos y destinatario antes de utilizarlo.'};\nreturn JSON.stringify(salida);"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1250,
+        470
+      ],
+      "id": "4046e499-033b-4c70-8772-fa5b017a5086",
+      "name": "Herramienta IA | Correo"
+    },
+    {
+      "parameters": {
+        "name": "tool_archivos",
+        "description": "Indica los campos necesarios para extraer/estructurar datos de una factura. No lee archivos ni realiza OCR.",
+        "language": "javaScript",
+        "jsCode": "const consulta = typeof query === 'string' ? query.trim() : JSON.stringify(query ?? '');\nconst campos = ['número de factura','proveedor','cédula jurídica','fecha','moneda','tipo de cambio si aplica','líneas (descripción, cantidad, precio unitario)','subtotal','impuesto','total'];\nconst contieneTexto = consulta.length > 80;\nreturn JSON.stringify({especialista:'archivos',estado: contieneTexto ? 'texto_recibido_para_orientacion' : 'requiere_documento',mensaje: contieneTexto ? 'Recibí texto en la consulta, pero esta herramienta no ejecuta OCR ni confirma la lectura de adjuntos. Usa los campos sugeridos para estructurarlo y valida todo con el motor POO.' : 'No se ha leído ningún PDF en este paso. Pega el texto extraído o conecta un extractor PDF al workflow.',camposSugeridos:campos,nota:'No inventar datos ausentes ni afirmar que se ha leído un archivo que no fue procesado.'});"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1480,
+        470
+      ],
+      "id": "6a1344ea-2a0c-4bf5-8914-a136d9cd4cc9",
+      "name": "Herramienta IA | Archivos"
+    },
+    {
+      "parameters": {},
+      "id": "5f5673a3-269b-40b1-b929-c61b2e6ec8c3",
+      "name": "Inicio manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const facturas = [{\"id\": \"F-001\", \"tipo\": \"nacional\", \"proveedor\": \"Suministros La Central\", \"cedulaJuridica\": \"3-101-123456\", \"fecha\": \"2026-09-12\", \"moneda\": \"CRC\", \"lineas\": [{\"descripcion\": \"Material de oficina\", \"cantidad\": 1, \"precioUnitario\": 50000}]}, {\"id\": \"F-002\", \"tipo\": \"exenta\", \"proveedor\": \"Fundación Horizonte\", \"cedulaJuridica\": \"3-101-234567\", \"fecha\": \"2026-09-13\", \"moneda\": \"CRC\", \"lineas\": [{\"descripcion\": \"Servicio exento\", \"cantidad\": 1, \"precioUnitario\": 150000}]}, {\"id\": \"F-003\", \"tipo\": \"extranjera\", \"proveedor\": \"Global Office LLC\", \"cedulaJuridica\": \"3-101-345678\", \"fecha\": \"2026-09-14\", \"moneda\": \"USD\", \"tipoCambio\": 510, \"lineas\": [{\"descripcion\": \"Licencias de software\", \"cantidad\": 1, \"precioUnitario\": 2500}]}, {\"id\": \"F-004\", \"tipo\": \"nacional\", \"proveedor\": \"Proveedor con identificación inválida\", \"cedulaJuridica\": \"2-101-123456\", \"fecha\": \"2026-09-15\", \"moneda\": \"CRC\", \"lineas\": [{\"descripcion\": \"Sillas\", \"cantidad\": 2, \"precioUnitario\": 25000}]}, {\"id\": \"F-005\", \"tipo\": \"nacional\", \"proveedor\": \"Equipos del Valle\", \"cedulaJuridica\": \"3-101-456789\", \"fecha\": \"2026-09-16\", \"moneda\": \"CRC\", \"lineas\": [{\"descripcion\": \"Equipo de cómputo\", \"cantidad\": 1, \"precioUnitario\": 1000000}]}, {\"id\": \"F-006\", \"tipo\": \"credito\", \"proveedor\": \"Proveedor desconocido\", \"cedulaJuridica\": \"3-101-567890\", \"fecha\": \"2026-09-17\", \"moneda\": \"CRC\", \"lineas\": [{\"descripcion\": \"Servicio\", \"cantidad\": 1, \"precioUnitario\": 10000}]}, {\"id\": \"F-007\", \"tipo\": \"nacional\", \"proveedor\": \"Comercial del Futuro\", \"cedulaJuridica\": \"3-101-678901\", \"fecha\": \"2099-01-01\", \"moneda\": \"CRC\", \"lineas\": [{\"descripcion\": \"Suministros\", \"cantidad\": 1, \"precioUnitario\": 10000}]}];\nreturn facturas.map((factura) => ({ json: factura }));"
+      },
+      "id": "cc05e500-0791-417f-bfb4-ae27fda7748f",
+      "name": "Datos de prueba",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        230,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const LIMITE_REVISION = 1000000;\nconst redondear = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;\nclass LineaFactura {\n  #descripcion; #cantidad; #precioUnitario;\n  constructor(d) { this.#descripcion = String(d.descripcion ?? '').trim(); this.#cantidad = Number(d.cantidad); this.#precioUnitario = Number(d.precioUnitario); }\n  get descripcion() { return this.#descripcion; } get cantidad() { return this.#cantidad; } get precioUnitario() { return this.#precioUnitario; }\n  subtotal() { return redondear(this.#cantidad * this.#precioUnitario); }\n}\nclass Factura {\n  #lineas;\n  constructor(d) { if (new.target === Factura) throw new Error('Factura es una clase base abstracta.'); this.id=d.id; this.tipo=d.tipo; this.proveedor=d.proveedor; this.cedulaJuridica=d.cedulaJuridica; this.fecha=d.fecha; this.moneda=String(d.moneda || 'CRC').toUpperCase(); this.tipoCambio=d.tipoCambio == null ? null : Number(d.tipoCambio); this.#lineas=(Array.isArray(d.lineas)?d.lineas:[]).map(x=>new LineaFactura(x)); }\n  get lineas() { return this.#lineas.map(x=>({descripcion:x.descripcion,cantidad:x.cantidad,precioUnitario:x.precioUnitario})); }\n  subtotal() { return redondear(this.#lineas.reduce((s,x)=>s+x.subtotal(),0)); }\n  calcularImpuesto() { throw new Error('Subclase debe implementar calcularImpuesto().'); }\n  total() { return redondear(this.subtotal()+this.calcularImpuesto()); }\n}\nclass FacturaNacional extends Factura { calcularImpuesto() { return redondear(this.subtotal()*0.13); } }\nclass FacturaExenta extends Factura { calcularImpuesto() { return 0; } }\nclass FacturaExtranjera extends Factura { calcularImpuesto() { return 0; } total() { return redondear(this.subtotal()*this.tipoCambio); } }\nclass FabricaFacturas {\n  static crear(d) {\n    switch(String(d.tipo || '').toLowerCase()) {\n      case 'nacional': return new FacturaNacional(d);\n      case 'exenta': return new FacturaExenta(d);\n      case 'extranjera': return new FacturaExtranjera(d);\n      default: throw new Error(`Tipo desconocido: ${d.tipo || '(vacío)'}`);\n    }\n  }\n}\nclass ValidadorFactura {\n  validar(f) {\n    const errores=[];\n    if(!f.id || !f.proveedor || !f.cedulaJuridica) errores.push('Faltan datos obligatorios.');\n    const cedula=String(f.cedulaJuridica||'').replace(/\\D/g,'');\n    if(cedula.length!==10 || cedula[0]!=='3') errores.push('Cédula jurídica inválida.');\n    const hoy=new Date().toISOString().slice(0,10);\n    const fechaOk=/^\\d{4}-\\d{2}-\\d{2}$/.test(String(f.fecha||'')) && !Number.isNaN(Date.parse(`${f.fecha}T00:00:00Z`));\n    if(!fechaOk) errores.push('Fecha inválida.'); else if(f.fecha>hoy) errores.push('Fecha futura.');\n    if(!f.lineas.length || f.lineas.some(x=>!x.descripcion || !Number.isFinite(x.cantidad) || x.cantidad<=0 || !Number.isFinite(x.precioUnitario) || x.precioUnitario<0)) errores.push('Líneas de factura inválidas.');\n    if(f.tipo==='extranjera') { if(!f.moneda || f.moneda==='CRC' || !Number.isFinite(f.tipoCambio) || f.tipoCambio<=0) errores.push('Moneda o tipo de cambio inválido.'); }\n    else if(f.moneda!=='CRC') errores.push('La factura doméstica debe estar en CRC.');\n    return {valida:errores.length===0,errores};\n  }\n}\nconst validador=new ValidadorFactura();\nreturn $input.all().map(({json:d})=>{\n  let f;\n  try { f=FabricaFacturas.crear(d); }\n  catch(e) { return {json:{id:d.id||'SIN-ID',tipo:d.tipo||'desconocido',proveedor:d.proveedor||'',fecha:d.fecha||'',subtotal:null,impuesto:null,total:null,estado:'rechazada',errores:[e.message],motivo:e.message,limiteRevision:LIMITE_REVISION}}; }\n  const validacion=validador.validar(f);\n  if(!validacion.valida) return {json:{id:f.id,tipo:f.tipo,proveedor:f.proveedor,fecha:f.fecha,subtotal:null,impuesto:null,total:null,estado:'rechazada',errores:validacion.errores,motivo:validacion.errores.join(' '),limiteRevision:LIMITE_REVISION}};\n  const subtotal=f.subtotal(), impuesto=f.calcularImpuesto(), total=f.total();\n  const estado=total>LIMITE_REVISION?'revision':'aprobada';\n  return {json:{id:f.id,tipo:f.tipo,proveedor:f.proveedor,cedulaJuridica:f.cedulaJuridica,fecha:f.fecha,moneda:f.moneda,tipoCambio:f.tipoCambio,lineas:f.lineas,subtotal,impuesto,total,estado,errores:[],motivo:estado==='revision'?`Supera el límite de revisión de ₡${LIMITE_REVISION.toLocaleString('es-CR')}.`:'',limiteRevision:LIMITE_REVISION}};\n});"
+      },
+      "id": "94af04e7-a170-45b3-bc42-fcaa35ea262c",
+      "name": "Procesar facturas (POO)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "aprobada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Aprobada"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "revision",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Revisión"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "rechazada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Rechazada"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f9246d2b-e17c-4590-922f-1e69e53ae295",
+      "name": "Clasificar por estado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f5bc1e8-5ee5-45bd-815b-948f9fab58ef",
+              "name": "rama",
+              "value": "aprobada",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "b6bdf6cd-1093-496d-9754-c1d488ff6f71",
+      "name": "Estado: aprobada",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        970,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "064d95b8-7284-493a-80b8-40aaf928496d",
+              "name": "rama",
+              "value": "revision",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "65406ae9-7723-48b9-bac3-70337bb6e609",
+      "name": "Estado: revisión",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        970,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1801d54-ae62-45e1-b527-bf99814b5d2f",
+              "name": "rama",
+              "value": "rechazada",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "9e8ec269-2a2d-4a18-ae0a-f2464fb0e7d7",
+      "name": "Estado: rechazada",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        970,
+        990
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 3
+      },
+      "id": "04d96516-2fe5-476d-b9ed-e279a51e52bf",
+      "name": "Unir resultados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1220,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const resultados = $input.all().map(({json}) => json);\nconst sumar=(key, list)=>Math.round((list.reduce((s, f)=>s+(Number(f[key])||0),0)+Number.EPSILON)*100)/100;\nconst aprobadas=resultados.filter(f=>f.estado==='aprobada');\nconst revision=resultados.filter(f=>f.estado==='revision');\nconst rechazadas=resultados.filter(f=>f.estado==='rechazada');\nconst procesables=resultados.filter(f=>f.estado!=='rechazada');\nreturn [{json:{generadoEn:new Date().toISOString(),cantidad:resultados.length,aprobadas:aprobadas.length,revision:revision.length,rechazadas:rechazadas.length,totalFacturado:sumar('total',procesables),ivaTotal:sumar('impuesto',procesables),montoLimiteRevisionCRC:1000000,resultados}}];"
+      },
+      "id": "8be8349f-fdca-4ad2-8c7e-c5ab683fe91e",
+      "name": "Reporte del lote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# FacturaBot SUPER WORKFLOW · Groq + POO\n\n**Unifica los 2 workflows importables y la metadata del manifest** en un solo JSON.\n\n## Entrada 1 · Chat con IA\nChat Trigger → AI Agent → Groq + memoria + 5 herramientas de especialista.\n\n## Entrada 2 · Procesamiento POO\nManual Trigger → datos de prueba → clases POO → Switch → ramas por estado → Merge → Reporte del lote.\n\n## Resultado esperado del lote de demostración\n- 7 facturas · 2 aprobadas · 2 en revisión · 3 rechazadas\n- Total procesable: ₡2 611 500 · IVA: ₡136 500\n\n## Configuración antes de usar\n1. Importa este JSON en n8n.\n2. En **Groq Chat Model**, selecciona/crea credenciales Groq.\n3. Prueba Chat Trigger para el orquestador y Manual Trigger para procesar las 7 facturas.\n4. El correo es solo borrador; los datos son demostrativos. Los Code Tools se ejecutan dentro de este mismo workflow; no requieren subworkflows separados.",
+        "height": 500,
+        "width": 560,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -30,
+        -360
+      ],
+      "id": "582eb24a-a9bb-4bc6-86a1-1a6ea88ff912",
+      "name": "LEEME | Arquitectura y resultados"
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent | Orquestador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent | Orquestador": {
+      "main": [
+        []
+      ],
+      "ai_languageModel": [
+        [
+          {
+            "node": "Groq Chat Model",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_memory": [
+        [
+          {
+            "node": "Memoria de conversación",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_tool": [
+        [
+          {
+            "node": "Herramienta IA | Facturas",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Herramienta IA | Datos",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Herramienta IA | Reportes",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Herramienta IA | Correo",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Herramienta IA | Archivos",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inicio manual": {
+      "main": [
+        [
+          {
+            "node": "Datos de prueba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos de prueba": {
+      "main": [
+        [
+          {
+            "node": "Procesar facturas (POO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar facturas (POO)": {
+      "main": [
+        [
+          {
+            "node": "Clasificar por estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar por estado": {
+      "main": [
+        [
+          {
+            "node": "Estado: aprobada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Estado: revisión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Estado: rechazada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado: aprobada": {
+      "main": [
+        [
+          {
+            "node": "Unir resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado: revisión": {
+      "main": [
+        [
+          {
+            "node": "Unir resultados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Estado: rechazada": {
+      "main": [
+        [
+          {
+            "node": "Unir resultados",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Unir resultados": {
+      "main": [
+        [
+          {
+            "node": "Reporte del lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "41dd0394-ce02-4199-9882-904d11d60552",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

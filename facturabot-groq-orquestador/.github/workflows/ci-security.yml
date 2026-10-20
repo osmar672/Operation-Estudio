@@ -1,0 +1,32 @@
+name: CI y revisión de seguridad
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '23 14 * * 1' # Todos los lunes a las 14:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verificar código y dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar usando el lockfile
+        run: npm ci
+      - name: Revisar sintaxis
+        run: npm run check
+      - name: Ejecutar pruebas
+        run: npm test
+      - name: Revisar vulnerabilidades conocidas de dependencias
+        run: npm audit --audit-level=moderate
